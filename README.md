@@ -77,7 +77,7 @@ Si votre cluster n'a pas encore de contrôleur Ingress, vous devez le déployer 
 ```bash
 ansible-playbook -i inventory.yml install-nginx-controller.yml
 ```
-4. Pilotage GitOps avec ArgoCD (application.yaml)
+### 5. Pilotage GitOps avec ArgoCD (application.yaml)
 
 Le déploiement applicatif n'est plus géré manuellement. Le fichier argocd/application.yaml définit l'état désiré de l'application :
 
@@ -87,7 +87,7 @@ Le déploiement applicatif n'est plus géré manuellement. Le fichier argocd/app
 
     Automated Sync : ArgoCD surveille ce dépôt et applique automatiquement les changements dès qu'un git push est effectué.
 
-### 5. Pour enregistrer l'application dans ArgoCD :
+### 6. Pour enregistrer l'application dans ArgoCD :
 ```bash
 
 kubectl apply -f argocd/application.yaml
