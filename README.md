@@ -16,7 +16,7 @@ Ce secret est automatiquement créé par le playbook Ansible. Il est ensuite ré
 ```yaml
 imagePullSecrets:
   - name: regcred
-
+```
 ---
 
 ## 🚀 Guide de Déploiement
