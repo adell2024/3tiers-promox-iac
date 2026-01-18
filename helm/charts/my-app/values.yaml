@@ -1,6 +1,6 @@
 frontend:
   image: aabda2006/3tiers-frontend:latest
-  replicas: 2
+  replicas: 3
   apiUrl: "http://api:3000"
   nodePort: 30080
 
