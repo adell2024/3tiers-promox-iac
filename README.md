@@ -32,21 +32,20 @@ export PG_PASSWORD='votre_mot_de-passe_robuste'
 # Identifiants DockerHub (pour éviter les limites de pull ou pour images privées)
 export DOCKERHUB_USERNAME='votre_username'
 export DOCKERHUB_PASSWORD='votre_password_ou_token'
-
-3. Lancement du Déploiement
+```
+### 3. Lancement du Déploiement
 
 Le déploiement se fait via le playbook Ansible situé dans le dossier ansible/.
 
 Déploiement standard :
-Bash
+```bash
 
 ansible-playbook -i inventory.yml playbook-deploy.yml
-
+```
 Déploiement complet (Nettoyage préalable) : Si vous souhaitez supprimer l'ancien namespace avant de réinstaller :
-Bash
-
+```bash
 ansible-playbook -i inventory.yml playbook-deploy.yml -e "clean_deploy=true"
-
+```
 🛠️ Configuration du Playbook
 
 Le fichier playbook-deploy.yml accepte plusieurs variables pour personnaliser le déploiement :
@@ -59,22 +58,20 @@ postgres_user	Utilisateur PostgreSQL	appuser
 🔍 Vérification du déploiement
 
 Une fois le playbook terminé, vérifiez l'état des ressources :
-Bash
+```bash
 
 kubectl get pods -n my-app
 kubectl get ingress -n my-app
+```
+### 4. Installation du Nginx Ingress Controller
+
+Si votre cluster n'a pas encore de contrôleur Ingress, vous devez le déployer avant l'application. Un playbook dédié est fourni pour cela :
+```bash
+ansible-playbook -i inventory.yml install-nginx-controller.yml
+
+```
+Note : Ce playbook installe le contrôleur via Helm dans le namespace ingress-nginx.
 
 L'application est accessible via l'IP de vos Workers sur le port 80 (si hostNetwork est activé) ou via le port affiché dans le résumé Ansible à la fin de l'exécution.
 
-
 ---
-
-### Une petite remarque sur ton Playbook
-À la fin de ton playbook, tu as une tâche qui affiche :
-`"Frontend accessible sur: http://<NODE_IP>:{{ item.spec.ports[0].nodePort }}"`
-
-Comme nous avons activé le **hostNetwork** et que nous utilisons un **Ingress**, cette ligne devient techniquement obsolète (mais pas gênante). L'utilisateur accèdera désormais à l'application sur le **port 80** directement.
-
-
-
-**Souhaites-tu que je t'aide à configurer un script `start.sh` qui chargerait les variables et lancerait le playbook en une seule fois ?**
