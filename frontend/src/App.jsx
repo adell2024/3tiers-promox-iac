@@ -1,3 +1,4 @@
+// Test GitHub Actions v1.0
 import * as React from 'react'; // Utilise l'import "étoile"
 import { useEffect, useState } from "react";
 
