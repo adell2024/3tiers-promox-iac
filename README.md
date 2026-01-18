@@ -76,8 +76,43 @@ kubectl get ingress -n my-app
 Si votre cluster n'a pas encore de contrôleur Ingress, vous devez le déployer avant l'application. Un playbook dédié est fourni pour cela :
 ```bash
 ansible-playbook -i inventory.yml install-nginx-controller.yml
-
 ```
+4. Pilotage GitOps avec ArgoCD (application.yaml)
+
+Le déploiement applicatif n'est plus géré manuellement. Le fichier argocd/application.yaml définit l'état désiré de l'application :
+
+    Source : Pointe vers ce dépôt Git et le dossier helm/charts/my-app.
+
+    Destination : Cluster Kubernetes local et namespace my-app.
+
+    Automated Sync : ArgoCD surveille ce dépôt et applique automatiquement les changements dès qu'un git push est effectué.
+
+### 5. Pour enregistrer l'application dans ArgoCD :
+```bash
+
+kubectl apply -f argocd/application.yaml
+```
+🔄 Workflow de Mise à Jour (CI/CD)
+
+    Développement : Vous modifiez le code dans frontend/ ou api/.
+
+    CI (GitHub Actions) : Au git push, l'image est buildée avec un tag unique (le SHA du commit) et poussée sur DockerHub.
+
+    Mise à jour Manifeste : Le workflow GitHub met à jour automatiquement le tag dans helm/charts/my-app/values.yaml.
+
+    CD (ArgoCD) : ArgoCD détecte la modification du tag dans Git et synchronise le cluster en mettant à jour les Pods avec la nouvelle image.
+
+🔍 Vérification
+```bash
+
+# Vérifier les Pods
+kubectl get pods -n my-app
+
+# Vérifier l'état dans ArgoCD
+kubectl get application app-3tier-node-react -n argocd
+```
+
+
 Note : Ce playbook installe le contrôleur via Helm dans le namespace ingress-nginx.
 
 L'application est accessible via l'IP de vos Workers sur le port 80 (si hostNetwork est activé) ou via le port affiché dans le résumé Ansible à la fin de l'exécution.
