@@ -1,13 +1,21 @@
-# 3-Tier Application Deployment (Proxmox/K8s)
+# 3-Tier Application Deployment (Proxmox/K8s/GitOps)
 
-Ce projet déploie une application complète à 3 niveaux (Frontend React, API Node.js, et Base de données PostgreSQL) sur un cluster Kubernetes. L'orchestration est pilotée par **Ansible** et le déploiement applicatif est géré par **Helm**.
+Ce projet déploie une application complète à 3 niveaux (Frontend React, API Node.js, et Base de données PostgreSQL) sur un cluster Kubernetes. L'infrastructure est provisionnée par **Ansible**, le packaging est géré par **Helm**, et le cycle de vie applicatif est automatisé par **ArgoCD (GitOps)**.
 
 ## 🏗️ Architecture du Projet
 * **Frontend** : React (Vite) servi par Nginx.
 * **Backend** : API Node.js (Express).
-* **Database** : PostgreSQL (StatefulSet).
-* **Orchestration** : Kubernetes (Ingress Nginx pour l'exposition).
-* **Automation** : Ansible (Playbook de déploiement).
+* **Database** : PostgreSQL (StatefulSet avec Volume Persistant).
+* **Automation Infra** : Ansible (Configuration cluster et secrets).
+* **CI/CD & GitOps** : GitHub Actions (Build/Push) et ArgoCD (Déploiement continu).
+
+## 🔐 Sécurisation du Registre (Secret `regcred`)
+Pour permettre à Kubernetes de télécharger les images depuis DockerHub (indispensable pour les dépôts privés ou pour éviter les quotas de pull), un secret de type `docker-registry` nommé **`regcred`** doit être présent dans le namespace cible.
+
+Ce secret est automatiquement créé par le playbook Ansible. Il est ensuite référencé dans les déploiements Helm via la directive :
+```yaml
+imagePullSecrets:
+  - name: regcred
 
 ---
 
