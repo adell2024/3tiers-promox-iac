@@ -1,0 +1,22 @@
+---
+- name: Configuration de l'Infrastructure (Ingress HA)
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Ajouter le repo Helm Ingress-Nginx
+      kubernetes.core.helm_repository:
+        name: ingress-nginx
+        repo_url: "https://kubernetes.github.io/ingress-nginx"
+
+    - name: Installer/Mettre à jour Ingress Nginx en mode DaemonSet
+      kubernetes.core.helm:
+        name: ingress-nginx
+        chart_ref: ingress-nginx/ingress-nginx
+        release_namespace: ingress-nginx
+        create_namespace: true
+        values:
+          controller:
+            kind: DaemonSet
+            hostNetwork: true
+            service:
+              type: ClusterIP # On n'a plus besoin du LoadBalancer Cloud

@@ -124,6 +124,16 @@
         msg:
           - "=== APPLICATION DÉPLOYÉE ==="
           - "Frontend accessible sur: http://<NODE_IP>:{{ item.spec.ports[0].nodePort }}"
+          - "========================================================="
+          - "🚀 APPLICATION DÉPLOYÉE EN HAUTE DISPONIBILITÉ"
+          - "========================================================="
+          - "Accès via n'importe quel nœud du cluster sur le port 80 :"
+          - "- http://10.0.0.11"
+          - "- http://10.0.0.12"
+          - "- http://10.0.0.13"
+          - ""
+          - "Endpoint API : /api/messages"
+          - "========================================================="
           - "Pour obtenir l'IP du noeud: kubectl get nodes -o wide"
       loop: "{{ service_list.resources }}"
       when: 
