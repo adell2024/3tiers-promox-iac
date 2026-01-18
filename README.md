@@ -65,16 +65,3 @@ kubectl get pods -n my-app
 kubectl get ingress -n my-app
 
 L'application est accessible via l'IP de vos Workers sur le port 80 (si hostNetwork est activé) ou via le port affiché dans le résumé Ansible à la fin de l'exécution.
-
-
----
-
-### Une petite remarque sur ton Playbook
-À la fin de ton playbook, tu as une tâche qui affiche :
-`"Frontend accessible sur: http://<NODE_IP>:{{ item.spec.ports[0].nodePort }}"`
-
-Comme nous avons activé le **hostNetwork** et que nous utilisons un **Ingress**, cette ligne devient techniquement obsolète (mais pas gênante). L'utilisateur accèdera désormais à l'application sur le **port 80** directement.
-
-
-
-**Souhaites-tu que je t'aide à configurer un script `start.sh` qui chargerait les variables et lancerait le playbook en une seule fois ?**
