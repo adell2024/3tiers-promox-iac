@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 
 function App() {
-  console.log("React chargé :", !!React); // Petit test pour la console
+  console.log("React chargé pour sûr:", !!React); // Petit test pour la console
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState("Initialisation...");
 
