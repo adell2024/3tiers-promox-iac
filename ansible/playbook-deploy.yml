@@ -27,7 +27,7 @@
       
     - name: Attendre la suppression complète du namespace
       ansible.builtin.pause:
-        seconds: 10
+        seconds: 50
       when: clean_deploy | bool
 
     - name: Créer le namespace Kubernetes
