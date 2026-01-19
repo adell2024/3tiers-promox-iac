@@ -42,7 +42,7 @@ function App() {
 
   return (
     <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>Mon App 3-Tiers : Test pipeline CI/CD complet #2</h1>
+      <h1>Mon App 3-Tiers : Test pipeline CI/CD complet #3</h1>
       <p><strong>Status :</strong> {status}</p>
       <hr />
       
