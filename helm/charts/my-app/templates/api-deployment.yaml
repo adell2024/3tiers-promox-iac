@@ -37,4 +37,4 @@ spec:
                   name: postgres-secret
                   key: db-password
       imagePullSecrets:
-        - name: my-dockerhub-secret
+        - name: regcred
