@@ -1,0 +1,4 @@
+---
+- import_playbook: playbook-setup-infra.yml      # Installe l'Ingress HA
+- import_playbook: playbook-setup-monitoring.yml # Installe le Metrics Server
+- import_playbook: playbook-deploy.yml           # Installe l'App + Secrets Vault

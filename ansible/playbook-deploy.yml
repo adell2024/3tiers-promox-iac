@@ -15,7 +15,7 @@
     # DockerHub credentials
     dockerhub_username: "{{ lookup('env','DOCKERHUB_USERNAME') | default('', true) }}"
     dockerhub_password: "{{ lookup('env','DOCKERHUB_PASSWORD') | default('', true) }}"
-  
+
   tasks:
     - name: Nettoyer le namespace si demandé
       kubernetes.core.k8s:
@@ -24,7 +24,7 @@
         kind: Namespace
         name: "{{ kube_namespace }}"
       when: clean_deploy | bool
-      
+
     - name: Attendre la suppression complète du namespace
       ansible.builtin.pause:
         seconds: 50
@@ -100,8 +100,8 @@
         namespace: "{{ kube_namespace }}"
       register: pod_list
       until: >
-        pod_list.resources | 
-        selectattr('status.phase', 'equalto', 'Running') | 
+        pod_list.resources |
+        selectattr('status.phase', 'equalto', 'Running') |
         list | length >= 3
       retries: 30
       delay: 10
@@ -136,6 +136,32 @@
           - "========================================================="
           - "Pour obtenir l'IP du noeud: kubectl get nodes -o wide"
       loop: "{{ service_list.resources }}"
-      when: 
+      when:
         - item.metadata.name == 'frontend'
         - item.spec.type == 'NodePort'
+
+    # --- AJOUT DU BLOC ARGOCD ICI ---
+    - name: Enregistrer l'application dans ArgoCD pour le Self-Healing
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: "{{ helm_release }}" #3tier-app-gitops
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git'  # <-- À MODIFIER
+              targetRevision: HEAD
+              path: helm/charts/my-app
+            destination:
+              server: 'https://kubernetes.default.svc'
+              namespace: "{{ kube_namespace }}"
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true

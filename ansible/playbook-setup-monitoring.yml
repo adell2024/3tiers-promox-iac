@@ -1,0 +1,29 @@
+---
+- name: Installer les outils de Monitoring et Observabilité
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Appliquer le manifest officiel Metrics Server
+      kubernetes.core.k8s:
+        state: present
+        src: https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+    - name: Appliquer le patch TLS Insecure (Méthode Directe)
+      shell: |
+        kubectl patch deployment metrics-server -n kube-system --type='json' \
+        -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+      register: patch_result
+      changed_when: "'patched' in patch_result.stdout"
+
+    - name: Attendre 30 secondes pour la collecte des données
+      pause:
+        seconds: 30
+
+    - name: Vérifier la remontée des metrics
+      command: kubectl top nodes
+      register: nodes_metrics
+      changed_when: false
+
+    - name: Afficher les stats du cluster
+      debug:
+        var: nodes_metrics.stdout_lines
