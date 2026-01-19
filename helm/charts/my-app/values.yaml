@@ -1,11 +1,13 @@
 frontend:
-  image: aabda2006/3tiers-frontend:latest
+  repository: aabda2006/3tiers-frontend
+  tag: "latest"  # Ce tag sera remplacé par le SHA du commit par GitHub Actions
   replicas: 3
   apiUrl: "http://api:3000"
   nodePort: 30080
 
 api:
-  image: aabda2006/3tiers-api:latest
+  repository: aabda2006/3tiers-api
+  tag: "latest"  # Ce tag sera remplacé par le SHA du commit par GitHub Actions
   replicas: 2
 
 postgres:
