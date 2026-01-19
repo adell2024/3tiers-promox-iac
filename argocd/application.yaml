@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-3tier-node-react  # Un nom propre à votre projet actuel
+  namespace: argocd
+spec:
+  project: default
+  source:
+    # L'URL de votre dépôt actuel (celui que vous venez de nettoyer)
+    repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git' 
+    targetRevision: main
+    path: helm/charts/my-app # Le chemin vérifié par helm lint
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: my-app # Votre nouveau namespace cible
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
