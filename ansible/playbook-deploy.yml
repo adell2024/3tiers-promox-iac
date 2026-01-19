@@ -56,7 +56,7 @@
 
     - name: Créer le secret DockerHub (si credentials fournis)
       ansible.builtin.shell: |
-        kubectl create secret docker-registry my-dockerhub-secret \
+        kubectl create secret docker-registry regcrd \
           --docker-server=https://index.docker.io/v1/ \
           --docker-username="{{ dockerhub_username }}" \
           --docker-password="{{ dockerhub_password }}" \
