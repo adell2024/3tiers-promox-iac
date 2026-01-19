@@ -12,6 +12,9 @@ spec:
       labels:
         app: api
     spec:
+      # C'est ici que doit se trouver imagePullSecrets
+      imagePullSecrets:
+        - name: regcred
       containers:
         - name: api
           image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"
@@ -36,5 +39,3 @@ spec:
                 secretKeyRef:
                   name: postgres-secret
                   key: db-password
-      imagePullSecrets:
-        - name: regcred
