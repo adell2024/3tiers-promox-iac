@@ -6,13 +6,21 @@ on:
     paths:
       - 'frontend/**'
       - 'api/**'
+      - 'helm/**' # On ajoute helm pour pouvoir trigger si on change les charts
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Important pour permettre à l'Action de modifier le repo
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # On récupère tout l'historique pour pouvoir push proprement
+          fetch-depth: 0
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
@@ -25,11 +33,33 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-frontend:latest
+          # On utilise le hash du commit comme tag + latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-frontend:${{ github.sha }}
 
       - name: Build and Push API
         uses: docker/build-push-action@v5
         with:
           context: ./api
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-api:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/3tiers-api:${{ github.sha }}
+
+      # --- ETAPE DE MISE À JOUR GITOPS ---
+      
+      - name: Update Helm values with new image tags
+        run: |
+          # On remplace les tags dans le fichier values.yaml
+          # On part du principe que vous avez 'tag: ...' sous frontend et api
+          sed -i "s/tag: .*/tag: \"${{ github.sha }}\"/g" helm/charts/my-app/values.yaml
+          
+      - name: Commit and Push changes to Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/charts/my-app/values.yaml
+          # Le [skip ci] évite de relancer ce workflow en boucle
+          git commit -m "chore(gitops): update image tags to ${{ github.sha }} [skip ci]"
+          git push
