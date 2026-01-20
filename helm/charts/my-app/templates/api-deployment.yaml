@@ -12,9 +12,41 @@ spec:
       labels:
         app: api
     spec:
-      # C'est ici que doit se trouver imagePullSecrets
       imagePullSecrets:
         - name: regcred
+      
+      # --- BLOC D'AUTOMATISATION SQL ---
+      initContainers:
+        - name: init-db-table
+          image: postgres:15
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: db-password
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: db-user
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: db-name
+          command:
+            - sh
+            - -c
+            - |
+              echo "Attente de PostgreSQL sur l'hôte 'postgres'..."
+              until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, content TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);" ; do
+                echo "Base de données non prête ou table non créée... nouvel essai dans 2 secondes"
+                sleep 2
+              done
+              echo "Base de données prête et table 'messages' vérifiée/créée !"
+
+      # --- CONTENEUR PRINCIPAL ---
       containers:
         - name: api
           image: "{{ .Values.api.repository }}:{{ .Values.api.tag }}"

@@ -1,13 +1,10 @@
 ---
-- name: Déployer application 3-tiers avec Helm
+- name: Déployer l'infrastructure applicative 3-tiers (Mode GitOps)
   hosts: localhost
   gather_facts: no
   vars:
     kube_namespace: my-app
     helm_release: my-app
-    helm_chart_path: "../helm/charts/my-app"
-    values_file_path: "../helm/charts/my-app/values.yaml"
-    clean_deploy: false
     # Secrets PostgreSQL
     postgres_db: myappdb
     postgres_user: appuser
@@ -15,21 +12,25 @@
     # DockerHub credentials
     dockerhub_username: "{{ lookup('env','DOCKERHUB_USERNAME') | default('', true) }}"
     dockerhub_password: "{{ lookup('env','DOCKERHUB_PASSWORD') | default('', true) }}"
+    clean_deploy: false
 
   tasks:
-    - name: Nettoyer le namespace si demandé
-      kubernetes.core.k8s:
-        state: absent
-        api_version: v1
-        kind: Namespace
-        name: "{{ kube_namespace }}"
+    # --- PHASE 1 : NETTOYAGE (Optionnel) ---
+    - name: Nettoyer le namespace si clean_deploy est vrai
       when: clean_deploy | bool
+      block:
+        - name: Supprimer le namespace existant
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: "{{ kube_namespace }}"
+        
+        - name: Attendre la suppression effective (évite les conflits)
+          ansible.builtin.pause:
+            seconds: 45
 
-    - name: Attendre la suppression complète du namespace
-      ansible.builtin.pause:
-        seconds: 50
-      when: clean_deploy | bool
-
+    # --- PHASE 2 : PRÉPARATION DE L'ENVIRONNEMENT ---
     - name: Créer le namespace Kubernetes
       kubernetes.core.k8s:
         state: present
@@ -39,7 +40,7 @@
           metadata:
             name: "{{ kube_namespace }}"
 
-    - name: Créer le secret PostgreSQL (nom corrigé)
+    - name: Créer le secret PostgreSQL
       kubernetes.core.k8s:
         state: present
         definition:
@@ -54,66 +55,49 @@
             db-user: "{{ postgres_user }}"
             db-password: "{{ postgres_password }}"
 
-    - name: Créer le secret DockerHub (si credentials fournis)
+    - name: Créer le secret DockerHub
       ansible.builtin.shell: |
-        kubectl create secret docker-registry regcrd \
+        kubectl create secret docker-registry regcred \
           --docker-server=https://index.docker.io/v1/ \
           --docker-username="{{ dockerhub_username }}" \
           --docker-password="{{ dockerhub_password }}" \
           --namespace={{ kube_namespace }} \
           --dry-run=client -o yaml | kubectl apply -f -
       when: dockerhub_username != '' and dockerhub_password != ''
-      register: dockerhub_secret_result
-      changed_when: "'created' in dockerhub_secret_result.stdout or 'configured' in dockerhub_secret_result.stdout"
+      changed_when: true
 
-    - name: Vérifier si la release Helm existe
-      ansible.builtin.command:
-        cmd: "helm list -n {{ kube_namespace }} -q"
-      register: helm_releases
-      changed_when: false
-      failed_when: false
-
-    - name: Nettoyer les ressources orphelines si la release n'existe pas
-      ansible.builtin.shell: |
-        kubectl delete deployment --all -n {{ kube_namespace }} --ignore-not-found=true
-        kubectl delete statefulset --all -n {{ kube_namespace }} --ignore-not-found=true
-        kubectl delete service --all -n {{ kube_namespace }} --ignore-not-found=true
-      when: helm_release not in helm_releases.stdout_lines
-      ignore_errors: yes
-
-    - name: Déployer le chart Helm
-      kubernetes.core.helm:
-        release_name: "{{ helm_release }}"
-        chart_ref: "{{ helm_chart_path }}"
-        release_namespace: "{{ kube_namespace }}"
-        create_namespace: false
-        values_files:
-          - "{{ values_file_path }}"
+    # --- PHASE 3 : DÉLÉGATION À ARGOCD (GITOPS) ---
+    - name: Enregistrer l'application dans ArgoCD
+      kubernetes.core.k8s:
         state: present
-        force: true
-        wait: true
-        wait_timeout: 5m
+        definition:
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: "{{ helm_release }}"
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git'
+              targetRevision: HEAD
+              path: helm/charts/my-app
+            destination:
+              server: 'https://kubernetes.default.svc'
+              namespace: "{{ kube_namespace }}"
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+              syncOptions:
+                - CreateNamespace=true
 
-    - name: Attendre que les pods soient prêts
-      kubernetes.core.k8s_info:
-        kind: Pod
-        namespace: "{{ kube_namespace }}"
-      register: pod_list
-      until: >
-        pod_list.resources |
-        selectattr('status.phase', 'equalto', 'Running') |
-        list | length >= 3
-      retries: 30
-      delay: 10
-      ignore_errors: yes
+    # --- PHASE 4 : RÉCUPÉRATION DES INFOS ET AFFICHAGE ---
+    - name: Attendre qu'ArgoCD crée les services
+      ansible.builtin.pause:
+        seconds: 10
 
-    - name: Afficher le statut des pods
-      ansible.builtin.debug:
-        msg: "Pod {{ item.metadata.name }}: {{ item.status.phase }}"
-      loop: "{{ pod_list.resources }}"
-      when: pod_list.resources is defined
-
-    - name: Récupérer les services
+    - name: Récupérer les services pour l'affichage
       kubernetes.core.k8s_info:
         kind: Service
         namespace: "{{ kube_namespace }}"
@@ -139,29 +123,3 @@
       when:
         - item.metadata.name == 'frontend'
         - item.spec.type == 'NodePort'
-
-    # --- AJOUT DU BLOC ARGOCD ICI ---
-    - name: Enregistrer l'application dans ArgoCD pour le Self-Healing
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: argoproj.io/v1alpha1
-          kind: Application
-          metadata:
-            name: "{{ helm_release }}" #3tier-app-gitops
-            namespace: argocd
-          spec:
-            project: default
-            source:
-              repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git'  # <-- À MODIFIER
-              targetRevision: HEAD
-              path: helm/charts/my-app
-            destination:
-              server: 'https://kubernetes.default.svc'
-              namespace: "{{ kube_namespace }}"
-            syncPolicy:
-              automated:
-                prune: true
-                selfHeal: true
-              syncOptions:
-                - CreateNamespace=true
