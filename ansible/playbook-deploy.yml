@@ -126,6 +126,8 @@
                 selfHeal: true
               syncOptions:
                 - CreateNamespace=true
+                - Replace=true
+                - ServerSideApply=true
     
     # --- PHASE 4 : RÉCUPÉRATION DES INFOS ET AFFICHAGE ---
     - name: Attendre qu'ArgoCD crée les services
