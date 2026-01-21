@@ -1,0 +1,52 @@
+# Configuration Prometheus
+prometheus:
+  enabled: true
+  replicas: 1
+  version: v2.48.0
+  retention: 7d
+  nodePort: 30090
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 200m
+    limits:
+      memory: 800Mi
+      cpu: 500m
+  storage:
+    type: emptyDir  # Peut être changé en persistentVolumeClaim
+    # storageClass: local-storage
+    # size: 10Gi
+
+# Configuration Prometheus Operator
+prometheusOperator:
+  enabled: true
+  image: quay.io/prometheus-operator/prometheus-operator:v0.70.0
+  configReloaderImage: quay.io/prometheus-operator/prometheus-config-reloader:v0.70.0
+
+# Configuration Grafana
+grafana:
+  enabled: true
+  replicas: 1
+  image: grafana/grafana:10.2.0
+  nodePort: 30300
+  adminUser: admin
+  adminPassword: admin123
+  datasources:
+    prometheus:
+      url: http://prometheus:9090
+
+# Configuration Node Exporter
+nodeExporter:
+  enabled: true
+  image: prom/node-exporter:v1.7.0
+  nodePort: 30100
+
+# ServiceMonitors pour l'application
+serviceMonitors:
+  enabled: true
+  myApp:
+    enabled: true
+    namespace: my-app
+    selector:
+      matchLabels:
+        monitoring: "true"

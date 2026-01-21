@@ -1,0 +1,44 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: main
+  namespace: monitoring
+  labels:
+    prometheus: main
+spec:
+  replicas: {{ .Values.prometheus.replicas }}
+  version: {{ .Values.prometheus.version }}
+  
+  serviceAccountName: prometheus
+  
+  serviceMonitorSelector: {}
+  serviceMonitorNamespaceSelector: {}
+  
+  resources:
+    requests:
+      memory: {{ .Values.prometheus.resources.requests.memory }}
+      cpu: {{ .Values.prometheus.resources.requests.cpu }}
+    limits:
+      memory: {{ .Values.prometheus.resources.limits.memory }}
+      cpu: {{ .Values.prometheus.resources.limits.cpu }}
+  
+  {{- if eq .Values.prometheus.storage.type "emptyDir" }}
+  storage:
+    emptyDir: {}
+  {{- else if eq .Values.prometheus.storage.type "persistentVolumeClaim" }}
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: {{ .Values.prometheus.storage.storageClass }}
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.prometheus.storage.size }}
+  {{- end }}
+  
+  retention: {{ .Values.prometheus.retention }}
+  
+  enableAdminAPI: false
+{{- end }}

@@ -2,20 +2,23 @@
 - name: Déployer l'infrastructure applicative 3-tiers (Mode GitOps)
   hosts: localhost
   gather_facts: no
+
   vars:
     kube_namespace: my-app
     helm_release: my-app
-    # Secrets PostgreSQL
+
     postgres_db: myappdb
     postgres_user: appuser
     postgres_password: "{{ lookup('env','PG_PASSWORD') | default('changeme', true) }}"
-    # DockerHub credentials
+
     dockerhub_username: "{{ lookup('env','DOCKERHUB_USERNAME') | default('', true) }}"
     dockerhub_password: "{{ lookup('env','DOCKERHUB_PASSWORD') | default('', true) }}"
+
     clean_deploy: false
 
   tasks:
-    # --- PHASE 1 : NETTOYAGE (Optionnel) ---
+
+    # --- PHASE 1 : NETTOYAGE ---
     - name: Nettoyer le namespace si clean_deploy est vrai
       when: clean_deploy | bool
       block:
@@ -25,12 +28,12 @@
             api_version: v1
             kind: Namespace
             name: "{{ kube_namespace }}"
-        
-        - name: Attendre la suppression effective (évite les conflits)
+
+        - name: Attendre la suppression effective
           ansible.builtin.pause:
             seconds: 45
 
-    # --- PHASE 2 : PRÉPARATION DE L'ENVIRONNEMENT ---
+    # --- PHASE 2 : PRÉPARATION ---
     - name: Créer le namespace Kubernetes
       kubernetes.core.k8s:
         state: present
@@ -66,7 +69,7 @@
       when: dockerhub_username != '' and dockerhub_password != ''
       changed_when: true
 
-    # --- PHASE 3 : DÉLÉGATION À ARGOCD (GITOPS) ---
+    # --- PHASE 3 : APPLICATION ---
     - name: Enregistrer l'application dans ArgoCD
       kubernetes.core.k8s:
         state: present
@@ -79,11 +82,11 @@
           spec:
             project: default
             source:
-              repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git'
+              repoURL: https://github.com/adell2024/3tiers-promox-iac.git
               targetRevision: HEAD
               path: helm/charts/my-app
             destination:
-              server: 'https://kubernetes.default.svc'
+              server: https://kubernetes.default.svc
               namespace: "{{ kube_namespace }}"
             syncPolicy:
               automated:
@@ -91,8 +94,8 @@
                 selfHeal: true
               syncOptions:
                 - CreateNamespace=true
-    
-    # --- PHASE 3.5 : DÉPLOIEMENT DU MONITORING (Prometheus/Grafana) ---
+
+    # --- PHASE 3.5 : MONITORING ---
     - name: Déployer la stack de monitoring via ArgoCD
       kubernetes.core.k8s:
         state: present
@@ -105,20 +108,18 @@
           spec:
             project: default
             source:
-              repoURL: 'https://prometheus-community.github.io/helm-charts'
+              repoURL: https://prometheus-community.github.io/helm-charts
               chart: kube-prometheus-stack
-              targetRevision: 45.x.x
-              # --- AJOUT POUR FIXER LE STOCKAGE ---
+              targetRevision: "45.7.1"
               helm:
                 values: |
                   prometheus:
+                    enabled: true
                     prometheusSpec:
                       storageSpec:
-                        disableMountSubPath: true
-                      emptyDir: {}
-            # ------------------------------------
+                        emptyDir: {}
             destination:
-              server: 'https://kubernetes.default.svc'
+              server: https://kubernetes.default.svc
               namespace: monitoring
             syncPolicy:
               automated:
@@ -128,13 +129,20 @@
                 - CreateNamespace=true
                 - Replace=true
                 - ServerSideApply=true
-    
-    # --- PHASE 4 : RÉCUPÉRATION DES INFOS ET AFFICHAGE ---
+
+
+    - name: Créer l'instance Prometheus via manifest GitOps
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../argocd/monitoring/prometheus-instance.yaml"
+
+
+    # --- PHASE 4 : AFFICHAGE ---
     - name: Attendre qu'ArgoCD crée les services
       ansible.builtin.pause:
         seconds: 10
 
-    - name: Récupérer les services pour l'affichage
+    - name: Récupérer les services
       kubernetes.core.k8s_info:
         kind: Service
         namespace: "{{ kube_namespace }}"
@@ -143,19 +151,7 @@
     - name: Afficher les informations d'accès
       ansible.builtin.debug:
         msg:
-          - "=== APPLICATION DÉPLOYÉE ==="
-          - "Frontend accessible sur: http://<NODE_IP>:{{ item.spec.ports[0].nodePort }}"
-          - "========================================================="
-          - "🚀 APPLICATION DÉPLOYÉE EN HAUTE DISPONIBILITÉ"
-          - "========================================================="
-          - "Accès via n'importe quel nœud du cluster sur le port 80 :"
-          - "- http://10.0.0.11"
-          - "- http://10.0.0.12"
-          - "- http://10.0.0.13"
-          - ""
-          - "Endpoint API : /api/messages"
-          - "========================================================="
-          - "Pour obtenir l'IP du noeud: kubectl get nodes -o wide"
+          - "Frontend: http://<NODE_IP>:{{ item.spec.ports[0].nodePort }}"
       loop: "{{ service_list.resources }}"
       when:
         - item.metadata.name == 'frontend'

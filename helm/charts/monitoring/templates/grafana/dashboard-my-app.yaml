@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-my-app
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  my-app-dashboard.json: |
+    {
+      "id": null,
+      "title": "Application 3-Tiers - Monitoring",
+      "tags": ["my-app", "3-tiers"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Nombre de messages",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "messages_total",
+              "legendFormat": "Total messages"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+        },
+        {
+          "id": 2,
+          "title": "Requêtes HTTP par seconde",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_request_duration_seconds_count[5m])",
+              "legendFormat": "{{`{{method}} {{route}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+        },
+        {
+          "id": 3,
+          "title": "Durée des requêtes HTTP (p95)",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "{{`{{method}} {{route}}`}}"
+            }
+          ],
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+        }
+      ],
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s",
+      "version": 1
+    }
