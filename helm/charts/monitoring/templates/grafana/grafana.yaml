@@ -33,12 +33,20 @@ spec:
       - name: grafana
         image: {{ .Values.grafana.image }}
         ports:
-        - containerPort: 3000
+        - name: metrics
+          containerPort: 3000
+          protocol: TCP
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
           value: {{ .Values.grafana.adminPassword | quote }}
         - name: GF_SECURITY_ADMIN_USER
           value: {{ .Values.grafana.adminUser | quote }}
+        - name: GF_METRICS_ENABLED
+          value: "true"
+        - name: GF_METRICS_BASIC_AUTH_USERNAME
+          value: ""
+        - name: GF_METRICS_BASIC_AUTH_PASSWORD
+          value: ""
         volumeMounts:
         - name: datasources
           mountPath: /etc/grafana/provisioning/datasources
@@ -65,7 +73,8 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 3000
+  - name: metrics
+    port: 3000
     targetPort: 3000
     nodePort: {{ .Values.grafana.nodePort }}
   selector:
