@@ -1,13 +1,13 @@
 frontend:
   repository: aabda2006/3tiers-frontend
-  tag: "9443f88ce8a081537cee6d024ce5222f734a8268"
+  tag: "187f86d2b42fdcbf51baf4bec9b89b5aef49344d"
   replicas: 3
   apiUrl: "http://api:3000"
   nodePort: 30080
 
 api:
   repository: aabda2006/3tiers-api
-  tag: "9443f88ce8a081537cee6d024ce5222f734a8268"
+  tag: "187f86d2b42fdcbf51baf4bec9b89b5aef49344d"
   replicas: 2
 
 postgres:
