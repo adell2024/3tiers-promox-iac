@@ -1,0 +1,92 @@
+---
+- name: Déployer le stack de monitoring
+  hosts: localhost
+  gather_facts: no
+  
+  vars:
+    monitoring_namespace: monitoring
+    helm_release: monitoring-stack
+    helm_chart_path: "../helm/charts/monitoring"
+    values_file_path: "../helm/charts/monitoring/values.yaml"
+    
+  tasks:
+    - name: Créer le namespace monitoring
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ monitoring_namespace }}"
+    
+    - name: Installer les CRDs Prometheus Operator (server-side)
+      ansible.builtin.command:
+        cmd: kubectl apply --server-side -f {{ item }}
+      loop:
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagerconfigs.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_probes.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusagents.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_scrapeconfigs.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+        - https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.70.0/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml
+        
+    - name: Déployer le chart Helm monitoring
+      kubernetes.core.helm:
+        release_name: "{{ helm_release }}"
+        chart_ref: "{{ helm_chart_path }}"
+        release_namespace: "{{ monitoring_namespace }}"
+        create_namespace: false
+        values_files:
+          - "{{ values_file_path }}"
+        state: present
+        wait: true
+        wait_timeout: 5m
+    
+    - name: Attendre que Prometheus soit prêt
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ monitoring_namespace }}"
+        label_selectors:
+          - "app.kubernetes.io/name=prometheus"
+      register: prometheus_pods
+      until: prometheus_pods.resources | length > 0 and prometheus_pods.resources[0].status.phase == "Running"
+      retries: 30
+      delay: 10
+      ignore_errors: yes
+    
+    - name: Attendre que Grafana soit prêt
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ monitoring_namespace }}"
+        label_selectors:
+          - "app=grafana"
+      register: grafana_pods
+      until: grafana_pods.resources | length > 0 and grafana_pods.resources[0].status.phase == "Running"
+      retries: 30
+      delay: 10
+      ignore_errors: yes
+    
+    - name: Récupérer l'IP du nœud
+      ansible.builtin.command:
+        cmd: kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
+      register: node_ip_result
+      changed_when: false
+    
+    - name: Afficher les URLs d'accès
+      ansible.builtin.debug:
+        msg:
+          - "=== 📊 Monitoring Stack déployé avec succès ==="
+          - ""
+          - "🔍 Prometheus: http://{{ node_ip_result.stdout }}:30090"
+          - "📈 Grafana: http://{{ node_ip_result.stdout }}:30300"
+          - "   Username: admin"
+          - "   Password: admin123"
+          - ""
+          - "📡 Node Exporter: http://{{ node_ip_result.stdout }}:30100/metrics"
+          - ""
+          - "Vérifier les ServiceMonitors:"
+          - "  kubectl get servicemonitor -A"

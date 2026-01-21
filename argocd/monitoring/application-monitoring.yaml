@@ -8,13 +8,13 @@ spec:
   source:
     repoURL: 'https://github.com/adell2024/3tiers-promox-iac.git'
     targetRevision: main
-    path: argocd/monitoring       # <-- chemin vers ton dossier contenant prometheus-instance.yaml
+    path: argocd/monitoring   # chemin vers ton dossier de monitoring versionné
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: monitoring
+    namespace: monitoring    # namespace où tes manifests seront appliqués
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: true           # supprime ce qui n'est plus dans Git
+      selfHeal: true        # restaure automatiquement les changements manuels
     syncOptions:
       - CreateNamespace=true
