@@ -15,4 +15,4 @@ spec:
   endpoints:
     - port: http            # <-- doit correspondre au port nommé du service
       path: /metrics
-      interval: 15s
+      interval: 30s
